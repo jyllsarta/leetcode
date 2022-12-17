@@ -15,42 +15,41 @@ defmodule Solution do
   # 両脇からスタートして、小さい方を中央寄りに動かす
   # 同じならどっちを動かしても別に大きくなることはない
   def max_area(height) do
-    distance = Enum.count(height) - 1
-    {last_element, _} = List.pop_at(height, -1)
-    check(height, 0, distance, last_element)
-  end
-
-  def check([], max_score, _, _) do
-    max_score
-  end
-
-  def check([_], max_score, _, _) do
-    max_score
-  end
-
-  def check(height, max_score, distance, last_element) do
-    [first | remains] = height
-    score = max(min(first, last_element) * distance, max_score)
-
-    if first > last_element do
-      # この2回操作はちょっとダサい...
-      {_, tail} = List.pop_at(height, -1)
-      {next_last, _} = List.pop_at(tail, -1)
-      check(tail, score, distance - 1, next_last)
+    count = Enum.count(height)
+    # list の末尾を触ることになるので大量のO(n)アクセスが発生してしまうので map にならす
+    height_map = for {x, index} <- Enum.with_index(height), into: %{}, do: {index, x}
+    if count < 2 do
+      0
     else
-      check(remains, score, distance - 1, last_element)
+      check(height_map, 0, count - 1, 0)
     end
+  end
+
+  def check(_, left, right, max_score) when left >= right do
+    max_score
+  end
+
+  def check(height_map, left, right, max_score) do
+    first = Map.fetch!(height_map, left)
+    last = Map.fetch!(height_map, right)
+    score = max(min(first, last) * (right - left), max_score)
+
+    if first > last do
+      check(height_map, left, right - 1, score)
+    else
+      check(height_map, left + 1, right, score)
+    end  
   end
 end
 
 defmodule Test do
   def test do
-    #case = [1,18,17,1]
+    #case = [1,8,6,2,5,4,8,3,7]
     #Solution.max_area(case) |> IO.inspect()
-    case = for _ <- 1..100, into: [], do: :rand.uniform(10000)
-    :timer.tc(Solution, :max_area, [case]) |> IO.inspect
-    case = for _ <- 1..1000, into: [], do: :rand.uniform(10000)
-    :timer.tc(Solution, :max_area, [case]) |> IO.inspect
+    #case = for _ <- 1..100, into: [], do: :rand.uniform(10000)
+    #:timer.tc(Solution, :max_area, [case]) |> IO.inspect
+    #case = for _ <- 1..1000, into: [], do: :rand.uniform(10000)
+    #:timer.tc(Solution, :max_area, [case]) |> IO.inspect
     case = for _ <- 1..10000, into: [], do: :rand.uniform(10000)
     :timer.tc(Solution, :max_area, [case]) |> IO.inspect
   end
