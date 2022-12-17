@@ -7,6 +7,13 @@ elixirでやりたいとき
 npm install -g https://github.com/ThatHurleyGuy/leetcode-cli#add-elixir
 ```
 
+ログイン
+```
+leetcode user -c
+# (ユーザ名を入力)
+# (leetcodeにログイン済みのブラウザセッションからcookieをコピペしてきて入力)
+```
+
 問題開く
 https://leetcode.com/problemset/all/
 
