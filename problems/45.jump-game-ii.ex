@@ -14,63 +14,47 @@ defmodule Solution do
   # 同様に末尾ノードに行くまでリストを埋めていく メモよりも小さな数値を書き込むことができるならメモを上書きする
   # 末尾まで行ったときの末尾に書いてある数値が答え
   # 普通のダイクストラ法と違って、とりあえずリストを前からなめていけば解けるようになってるので一般の問題よりは簡単なはず
+  # ↑ TLE。 O(n) と勘違いしてたけどたしかに len(nums) * max(num) の n^2 だった...
+  # discussion をチラ見してみると BFS らしい。たしかに
+  # https://qiita.com/drken/items/996d80bcae64649a6580
   @spec jump(nums :: [integer]) :: integer
+  def jump([_]) do
+    0
+  end
+
   def jump(nums) do
-    {:ok, memo} = Memo.start_link()
-    # スタート地点にはゼロ歩で行ける
-    Memo.put(memo, 0, 0)
-
-    for {num, index} <- Enum.with_index(nums) do
-      mark(num, index, memo)
-    end
-
-    Memo.get(memo, Enum.count(nums) - 1)
+    # ランダムアクセスするのでnumsをmapにならす
+    nums_map = for {x, index} <- Enum.with_index(nums), into: %{}, do: {index, x}
+    mark([{0, 0}], nums_map, Enum.count(nums) - 1)
   end
 
-  def mark(0, _, _), do: :noop
+  def mark(queue, nums_map, target)
 
-  def mark(num, index, memo) do
-    cost_to_reach_here = Memo.get(memo, index)
+  def mark([], _nums_map, _target) do
+    nil
+  end
 
-    for distance <- 1..num do
-      memoized = Memo.get(memo, index + distance)
+  def mark([{index, rank} | queue], nums_map, target) do
+    num = Map.fetch!(nums_map, index)
+    #IO.inspect([rank, total])
 
-      cond do
-        is_nil(memoized) ->
-          Memo.put(memo, index + distance, cost_to_reach_here + 1)
-
-        cost_to_reach_here + 1 < memoized ->
-          Memo.put(memo, index + distance, cost_to_reach_here + 1)
-
-        true ->
-          :noop
-      end
+    if target <= index + num do
+      rank + 1
+    else
+      additional_check = Enum.map((index+1)..(index+num), & {&1, rank+1})
+      next = filter(queue ++ additional_check)
+      mark(next, nums_map, target)
     end
   end
-end
 
-defmodule Memo do
-  use Agent
-
-  def start_link do
-    Agent.start_link(fn -> %{} end)
-  end
-
-  def get(memo, key) do
-    Agent.get(memo, &Map.get(&1, key))
-  end
-
-  def put(memo, key, value) do
-    Agent.update(memo, &Map.put(&1, key, value))
-  end
-
-  def dump(memo) do
-    Agent.get(memo, &Kernel.tap(&1, fn -> IO.inspect(&1) end))
+  def filter(queue) do
+    queue |> Enum.uniq_by(& elem(&1, 0))
   end
 end
 
 defmodule Test do
   def test do
+    [0] |> Solution.jump() |> IO.inspect()
     [2, 3, 1, 1, 4] |> Solution.jump() |> IO.inspect()
     [2, 3, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1] |> Solution.jump() |> IO.inspect()
     [2, 5, 1, 1, 9, 7, 5, 1, 1, 1, 1, 1, 1, 1] |> Solution.jump() |> IO.inspect()
@@ -79,7 +63,7 @@ defmodule Test do
   end
 
   def clock do
-    nums = for _ <- 1..1000, into: [], do: :rand.uniform(100)
+    nums = for _ <- 1..10000, into: [], do: :rand.uniform(1000)
     :timer.tc(Solution, :jump, [nums]) |> IO.inspect
   end
 end
