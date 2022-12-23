@@ -25,30 +25,31 @@ defmodule Solution do
   def jump(nums) do
     # ランダムアクセスするのでnumsをmapにならす
     nums_map = for {x, index} <- Enum.with_index(nums), into: %{}, do: {index, x}
-    mark([{0, 0}], nums_map, Enum.count(nums) - 1)
+    mark([{0, 0}], nums_map, Enum.count(nums) - 1, MapSet.new())
   end
 
-  def mark(queue, nums_map, target)
+  def mark(queue, nums_map, target, searched)
 
-  def mark([], _nums_map, _target) do
+  def mark([], _nums_map, _target, _searched) do
     nil
   end
 
-  def mark([{index, rank} | queue], nums_map, target) do
+  def mark([{index, rank} | queue], nums_map, target, searched) do
     num = Map.fetch!(nums_map, index)
-    #IO.inspect([rank, total])
 
     if target <= index + num do
       rank + 1
     else
-      additional_check = Enum.map((index+1)..(index+num), & {&1, rank+1})
-      next = filter(queue ++ additional_check)
-      mark(next, nums_map, target)
+      range = (index+1)..(index+num)
+      additional_check = Enum.map(range, & {&1, rank+1}) |> Enum.filter(& !MapSet.member?(searched, elem(&1, 0)))
+      searched = if additional_check == [] do
+        searched
+      else
+         MapSet.union(searched, MapSet.new(range))
+      end
+      next = queue ++ additional_check
+      mark(next, nums_map, target, searched)
     end
-  end
-
-  def filter(queue) do
-    queue |> Enum.uniq_by(& elem(&1, 0))
   end
 end
 
