@@ -21,10 +21,10 @@ defmodule Solution do
     # 方針通り素朴に解くなら後ろから見ていくことになるが、Elixirのリストは後ろの方を触るのが苦手なのでひっくり返す
     # 最後のマスにぴったり到達 == セーフなので、最後のマスだけは自分を追い越すではなくぴったし到達も許可する
     [first | rest] = Enum.reverse(nums)
-    if first == 0 && !reachable?(rest) do
+
+    if first == 0 && unreachable?(rest) do
       false
     else
-      IO.inspect(rest)
       check(rest)
     end
   end
@@ -45,12 +45,14 @@ defmodule Solution do
     check(rest)
   end
 
+  # 自分より 一歩先のマスに進める選択肢がないか
   def no_overtake?(nums) do
-    Enum.with_index(nums, 1) |> Enum.all?( & elem(&1, 0) < elem(&1, 1) )
+    Enum.with_index(nums, 2) |> Enum.all?(&(elem(&1, 0) < elem(&1, 1)))
   end
 
-  def reachable?(nums) do
-    Enum.with_index(nums, 1) |> Enum.all?( & elem(&1, 0) <= elem(&1, 1) )
+  # 自分自身にぴったり到達する選択肢がないか
+  def unreachable?(nums) do
+    Enum.with_index(nums, 1) |> Enum.all?(&(elem(&1, 0) < elem(&1, 1)))
   end
 end
 
@@ -67,26 +69,26 @@ defmodule Test do
     [2, 3, 1, 1, 2, 1, 3, 1, 1, 1, 9, 1, 1, 1] |> Solution.can_jump() |> IO.inspect()
     [2, 0, 2, 0, 5, 0, 0, 0, 0, 1, 9, 1, 1, 1] |> Solution.can_jump() |> IO.inspect()
     nums = for _ <- 1..10000, into: [], do: :rand.uniform(1000)
-    :timer.tc(Solution, :can_jump, [nums]) |> IO.inspect
+    :timer.tc(Solution, :can_jump, [nums]) |> IO.inspect()
 
     IO.inspect("falsey cases")
     [10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] |> Solution.can_jump() |> IO.inspect()
     [2, 0, 2, 0, 4, 0, 0, 0, 0, 1, 9, 1, 1, 1] |> Solution.can_jump() |> IO.inspect()
     [3, 2, 1, 0, 4] |> Solution.can_jump() |> IO.inspect()
     nums = for x <- 9998..0, into: [], do: x
-    :timer.tc(Solution, :can_jump, [nums ++ [0]]) |> IO.inspect
+    :timer.tc(Solution, :can_jump, [nums ++ [0]]) |> IO.inspect()
   end
 
   def clock do
     nums = for _ <- 1..10000, into: [], do: :rand.uniform(1000)
-    :timer.tc(Solution, :can_jump, [nums]) |> IO.inspect
+    :timer.tc(Solution, :can_jump, [nums]) |> IO.inspect()
   end
 
   def clock2 do
     # チョークポイント判定法でのハズレケース1 [2, 0, 2, 0, ...] と続いて、ギリ飛び越せる判定がちまちまと続く回
     # {320035, false} 怪しいが許されそうな数値とみた
     nums = for {_, index} <- Enum.with_index(0..9999), into: [], do: rem(index, 2) * 2
-    :timer.tc(Solution, :can_jump, [nums ++ [2]]) |> IO.inspect
+    :timer.tc(Solution, :can_jump, [nums ++ [2]]) |> IO.inspect()
   end
 
   def clock3 do
@@ -94,7 +96,8 @@ defmodule Test do
     # {1037981, true} ダメかもしれない、多分これの類似テストケース同士の累積ダメージでTLEなると思う
     # [5,_,_,_,0] の最後の0を処理するとき、5がある以上その途中4マスに何があってもチョークポイント足り得ないので枝刈りできそう
     nums = for {_, index} <- Enum.with_index(0..9999), into: [], do: 0
-    :timer.tc(Solution, :can_jump, [[20000 | nums]]) |> IO.inspect
+    :timer.tc(Solution, :can_jump, [[20000 | nums]]) |> IO.inspect()
   end
 end
+
 # @lc code=end
