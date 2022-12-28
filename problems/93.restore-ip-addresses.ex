@@ -12,25 +12,14 @@ defmodule Solution do
   11 C 3 なので、11 * 10 * 9 / 3 * 2 * 1 = 165
   なんか全探索しても十分に耐えられそうな組み合わせ数に見える
   もちろん一個のオクテットが4桁以上になるような組み合わせとかは捨てて良くて、あとから削れば良さそう
-  1 <= s.length <= 20 && s consists of digits only. なので、Elixirであれば整数型で十分扱える
   """
   @spec restore_ip_addresses(s :: String.t) :: [String.t]
   def restore_ip_addresses(s) do
-    numlist = s |> String.to_integer() |> to_numlist()
     digits = String.length(s)
-    combinations = combinations(digits)
-    chunks = Enum.map(combinations, & chunk(numlist, &1))
-  end
-
-  @doc """
-  123 -> [1,2,3]
-  """
-  def to_numlist(num) do
-    digits = :math.log10(num) |> Kernel.trunc()
-    for x <- 0..(digits), into: [] do
-      num |> div(10 ** x) |> rem(10)
-    end
-    |> Enum.reverse()
+    combinations = combinations(digits - 1)
+    ips = Enum.map(combinations, & chunk(s, &1))
+    ips = Enum.filter(ips, &valid_ip?/1)
+    Enum.map(ips, &format/1)
   end
 
   @doc """
@@ -48,23 +37,68 @@ defmodule Solution do
   end
 
   @doc """
-  第一引数を第二引数(must sorted)の位置でカットする
-  [1,2,3,4,5,6,7,8,9], [0,1,5] -> [[1], [2], [3,4,5,6], [7,8,9]]
+  第一引数を第二引数(must sorted)の位置でカット
+  "123456789", [0,1,5] -> ["1","2","345","6789"]
   """
-  def chunk(list, cut_positions) do
-    # これ考えてたけどnumlistじゃなくてString.split_at使うほうがスムーズかも
+  def chunk(string, [c1, c2, c3]) do
+    rest = string
+    next_pos = c1 + 1
+    {s1, rest} = String.split_at(rest, next_pos)
+    next_pos = c2 - c1
+    {s2, rest} = String.split_at(rest, next_pos)
+    next_pos = c3 - c2
+    {s3, s4} = String.split_at(rest, next_pos)
+    [s1,s2,s3,s4]
+  end
+
+  @doc """
+  ["123","123","123","123"] -> true
+  ["123","123","123","0"]   -> true
+  ["123","123","123","023"] -> false
+  ["123","123","123","256"] -> false
+  """
+  def valid_ip?(ip) do
+    valid_zero_padding?(ip) && valid_octet?(ip)
+  end
+
+  def valid_zero_padding?(ip) do
+    Enum.all?(ip, &do_valid_zero_padding?/1)
+  end
+
+  def do_valid_zero_padding?(octet) do
+    !(String.length(octet) > 1 && String.starts_with?(octet, "0"))
+  end
+
+  def valid_octet?(ip) do
+    Enum.all?(ip, &do_valid_octet?/1)
+  end
+
+  def do_valid_octet?(octet) do
+    num = String.to_integer(octet)
+    0 <= num && num <= 255
+  end
+
+  def format(ip) do
+    Enum.join(ip, ".")
   end
 end
 
 # なんか 1ファイル構成よりも Mix プロジェクトにしてテストしたほうが楽かもな
 defmodule Test do
-  def test_numlist do
-    Solution.to_numlist(123123123123) |> IO.inspect()
-    Solution.to_numlist(98765) |> IO.inspect()
+  def test_chunk do
+    Solution.chunk("123123123123", [2,5,8]) |> IO.inspect()
+    Solution.chunk("123456789", [0,1,4]) |> IO.inspect()
   end
 
   def test_combinations do
+    Solution.combinations(5) |> IO.inspect()
+  end
 
+  def test do
+    Solution.restore_ip_addresses("255255255255") |> IO.inspect()
+    Solution.restore_ip_addresses("25525511135") |> IO.inspect()
+    Solution.restore_ip_addresses("101023") |> IO.inspect()
+    Solution.restore_ip_addresses("0000") |> IO.inspect()
   end
 end
 # @lc code=end
