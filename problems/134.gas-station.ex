@@ -61,6 +61,10 @@ defmodule Solution do
   測ってみると上記最悪ケースでも{471786, 9999} なので許容範囲っぽい処理時間 まだ詰めれるけどこれでいいか
 
   ↑ 10^5だから桁一個間違えてた、プラスとマイナスの連続消化やりましょう...
+  プラマイ連続消化によって、
+  * プラマイ激しく入れ替わって目先に死因がある場合はreduce_whileでhaltしてくれる
+  * 遠くにある場合はaccumulateされてくれる
+  でほぼO(n)になったはず
   """
   @spec can_complete_circuit(gas :: [integer], cost :: [integer]) :: integer
   def can_complete_circuit(gas, cost) do
@@ -77,30 +81,44 @@ defmodule Solution do
   end
 
   # マイナスの連続消化
-  def solve(total_minus, [{delta, index} | rest]) when delta <= 0 do
+  def solve(total_minus, [{delta, index} | rest]) when delta < 0 do
     solve(total_minus + delta, rest)
   end
 
   def solve(total_minus, [{delta, index} | rest] = route) do
-    #IO.inspect("total_minus: #{total_minus}")
+    # IO.inspect("total_minus: #{total_minus}")
     sum =
       Enum.reduce_while(route, 0, fn {delta, _}, acc ->
         if delta + acc < 0, do: {:halt, nil}, else: {:cont, delta + acc}
       end)
-    #IO.inspect("sum: #{sum}")
-    #IO.inspect(route)
+
+    # IO.inspect("sum: #{sum}")
+    # IO.inspect(route)
 
     if !is_nil(sum) && sum + total_minus >= 0 do
       index
     else
-      # TODO: 次の項が>=0だったらマイナスが出てくるまで足し合わせる
-      solve(total_minus + delta, rest)
+      {plus_delta, rest} = accumulate_non_neg_area(0, route)
+      solve(total_minus + plus_delta, rest)
     end
+  end
+
+  def accumulate_non_neg_area(acc, []) do
+    {acc, []}
+  end
+
+  def accumulate_non_neg_area(acc, [{delta, _} | _] = route) when delta < 0 do
+    {acc, route}
+  end
+
+  def accumulate_non_neg_area(acc, [{delta, _} | rest]) do
+    accumulate_non_neg_area(acc + delta, rest)
   end
 end
 
 defmodule Test do
   def test do
+    IO.puts("truthy")
     gas = [1, 2, 3, 4, 5]
     cost = [3, 4, 5, 1, 2]
     Solution.can_complete_circuit(gas, cost) |> IO.inspect()
@@ -117,7 +135,7 @@ defmodule Test do
     cost = [2]
     Solution.can_complete_circuit(gas, cost) |> IO.inspect()
 
-    # falsey
+    IO.puts("falsey")
     gas = [2, 3, 4]
     cost = [3, 4, 3]
     Solution.can_complete_circuit(gas, cost) |> IO.inspect()
@@ -126,8 +144,10 @@ defmodule Test do
     cost = for _ <- 0..1000, into: [], do: 0
     Solution.can_complete_circuit(gas, cost) |> IO.inspect()
 
-    gas  = [1,2,3,4,3,2,4,1,5,3,2,4] # 34
-    cost = [1,1,1,3,2,4,3,6,7,4,3,1] # 36
+    # 34
+    gas = [1, 2, 3, 4, 3, 2, 4, 1, 5, 3, 2, 4]
+    # 36
+    cost = [1, 1, 1, 3, 2, 4, 3, 6, 7, 4, 3, 1]
     Solution.can_complete_circuit(gas, cost) |> IO.inspect()
   end
 
@@ -143,7 +163,15 @@ defmodule Test do
   def clock2 do
     gas = for _ <- 0..99997, into: [], do: 1
     cost = for _ <- 0..99999, into: [], do: 0
-    gas = gas ++ [-100000, 2]
+    gas = gas ++ [-100_000, 1]
+    :timer.tc(Solution, :can_complete_circuit, [gas, cost]) |> IO.inspect()
+  end
+
+  # ゼロだらけケース
+  def clock3 do
+    gas = for _ <- 0..99996, into: [], do: 0
+    cost = for _ <- 0..99999, into: [], do: 0
+    gas = [-1 | gas] ++ [-1, 1]
     :timer.tc(Solution, :can_complete_circuit, [gas, cost]) |> IO.inspect()
   end
 end
