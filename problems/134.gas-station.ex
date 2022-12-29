@@ -51,22 +51,101 @@ defmodule Solution do
   -3, [1(d), 1(e), 1(f)]
   d の総和 >= メモにある累積負債 なので dからいくのが正解です！ dのインデックスを回答する
 
-  めちゃO(n) っぽい、これだ
+  めちゃO(n) っぽい、これだ(厳密にO(n) ではなく、毎チャレンジごとに最悪ケースでn回計算入るので三角形のn^2)
+
+  総和ゼロなのにいけないことあるんだろうか、ない気がする
+  どこかの壁を高くした分だけどこかのガス供給が増えて、その供給箇所が解になるように移動する気がする
+
+  これの最悪は [1,1,1,1,-5,1] かな これでダメなようなら複数のプラスを圧縮する処理を導入する
+
+  測ってみると上記最悪ケースでも{471786, 9999} なので許容範囲っぽい処理時間 まだ詰めれるけどこれでいいか
+
+  ↑ 10^5だから桁一個間違えてた、プラスとマイナスの連続消化やりましょう...
   """
   @spec can_complete_circuit(gas :: [integer], cost :: [integer]) :: integer
   def can_complete_circuit(gas, cost) do
-    delta_map = for {{plus, minus}, index} <- (Enum.zip(gas, cost) |> Enum.with_index()), into: %{}, do: {index, plus - minus}
-    indice = 0..(Enum.count(gas))
-    delta_map
+    deltas =
+      for {{plus, minus}, index} <- Enum.zip(gas, cost) |> Enum.with_index(),
+          do: {plus - minus, index}
+
+    # TODO: sum(deltas) < 0: -1
+    solve(0, deltas)
   end
 
+  def solve(_total_minus, []) do
+    -1
+  end
+
+  # マイナスの連続消化
+  def solve(total_minus, [{delta, index} | rest]) when delta <= 0 do
+    solve(total_minus + delta, rest)
+  end
+
+  def solve(total_minus, [{delta, index} | rest] = route) do
+    #IO.inspect("total_minus: #{total_minus}")
+    sum =
+      Enum.reduce_while(route, 0, fn {delta, _}, acc ->
+        if delta + acc < 0, do: {:halt, nil}, else: {:cont, delta + acc}
+      end)
+    #IO.inspect("sum: #{sum}")
+    #IO.inspect(route)
+
+    if !is_nil(sum) && sum + total_minus >= 0 do
+      index
+    else
+      # TODO: 次の項が>=0だったらマイナスが出てくるまで足し合わせる
+      solve(total_minus + delta, rest)
+    end
+  end
 end
 
 defmodule Test do
   def test do
-    gas = [1,2,3,4,5]
-    cost = [3,4,5,1,2]
-    Solution.can_complete_circuit(gas, cost)
+    gas = [1, 2, 3, 4, 5]
+    cost = [3, 4, 5, 1, 2]
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    gas = [1, -2, 2, -3, 3, -4, 1, 1, 1]
+    cost = for _ <- 0..1000, into: [], do: 0
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    gas = [1, 1, 1, 1, -6, 2]
+    cost = for _ <- 0..1000, into: [], do: 0
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    gas = [2]
+    cost = [2]
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    # falsey
+    gas = [2, 3, 4]
+    cost = [3, 4, 3]
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    gas = [1, 1, 1, 1, -6, 1]
+    cost = for _ <- 0..1000, into: [], do: 0
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+
+    gas  = [1,2,3,4,3,2,4,1,5,3,2,4] # 34
+    cost = [1,1,1,3,2,4,3,6,7,4,3,1] # 36
+    Solution.can_complete_circuit(gas, cost) |> IO.inspect()
+  end
+
+  # 最悪OK
+  def clock do
+    gas = for _ <- 0..99997, into: [], do: 1
+    cost = for _ <- 0..99999, into: [], do: 0
+    gas = gas ++ [-99999, 2]
+    :timer.tc(Solution, :can_complete_circuit, [gas, cost]) |> IO.inspect()
+  end
+
+  # 最悪ダメケース
+  def clock2 do
+    gas = for _ <- 0..99997, into: [], do: 1
+    cost = for _ <- 0..99999, into: [], do: 0
+    gas = gas ++ [-100000, 2]
+    :timer.tc(Solution, :can_complete_circuit, [gas, cost]) |> IO.inspect()
   end
 end
+
 # @lc code=end
