@@ -23,24 +23,7 @@ defmodule Solution do
   def stone_game_ii(piles) do
     piles_map = for {x, index} <- Enum.with_index(piles), into: %{}, do: {index + 1, x}
     pile_count = Enum.count(piles)
-    # IO.inspect(piles_map)
-    solve(piles_map, 0, pile_count, true, 2, 0, 0, [])
-  end
-
-  def solve(
-        _piles_map,
-        picked_count,
-        pile_count,
-        _alice_side?,
-        _max_pick,
-        score,
-        _depth,
-        _history
-      )
-      when picked_count >= pile_count do
-    # IO.puts("DP: #{depth} picked: #{picked_count} AS:#{alice_side?} max_pick:#{max_pick}, SC:#{score}")
-    # IO.inspect(history)
-    score
+    solve(piles_map, 0, pile_count, true, 2, 0, 0, [-100])
   end
 
   def solve(piles_map, picked_count, pile_count, alice_side?, max_pick, score, depth, history) do
@@ -49,34 +32,36 @@ defmodule Solution do
     results =
       for pick <- choices, into: [] do
         end_index = min(picked_count + pick, pile_count)
-        current_score = collect(piles_map, picked_count + pick, end_index)
+        current_score = collect(piles_map, picked_count + 1, end_index)
+        
         # 取り切れるなら取り切った結果が結論になる
         if pick + picked_count >= pile_count do
-          score + current_score
+          if alice_side? do
+            score + current_score
+          else
+            score
+          end
         else
           next_max_pick = max(max_pick, pick * 2)
-
           score =
             if alice_side? do
               score + current_score
             else
               score
             end
-
           solve(piles_map, end_index, pile_count, !alice_side?, next_max_pick, score, depth + 1, [
             score | history
           ])
         end
       end
 
+    IO.puts("DP: #{depth} picked: #{picked_count} AS:#{alice_side?} max_pick:#{max_pick}, score: #{score}")
+    IO.inspect(history)
+    IO.inspect(results ++ [""])
     if alice_side? do
-      # IO.puts("DP: #{depth} picked: #{picked_count} AS:#{alice_side?} max_pick:#{max_pick}, score: #{score}")
-      # IO.inspect(history)
-      Enum.max(results) + score
+      Enum.max(results)
     else
-      # IO.puts("DP: #{depth} picked: #{picked_count} AS:#{alice_side?} max_pick:#{max_pick}, score: #{score}")
-      # IO.inspect(history)
-      Enum.min(results) + score
+      Enum.min(results)
     end
   end
 
@@ -91,12 +76,24 @@ end
 
 defmodule Test do
   def test do
-    piles = [1, 2, 3, 4, 5, 100]
+    # piles = [1, 2, 3, 4, 5, 100]
+    # Solution.stone_game_ii(piles) |> IO.inspect()
+
+    # piles = [2, 7]
+    # Solution.stone_game_ii(piles) |> IO.inspect()
+
+    # piles = [2, 7, 9, 10]
+    # Solution.stone_game_ii(piles) |> IO.inspect()
+
+    # piles = 1..10
+    # Solution.stone_game_ii(piles) |> IO.inspect()
+
+    piles = [1,2,3,4,5,6,7,20,9,10]
     Solution.stone_game_ii(piles) |> IO.inspect()
   end
 
   def clock do
-    piles = 1..30
+    piles = 1..25
     :timer.tc(Solution, :stone_game_ii, [piles]) |> IO.inspect()
   end
 end
