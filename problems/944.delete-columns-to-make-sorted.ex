@@ -8,18 +8,21 @@
 defmodule Solution do
   @spec min_deletion_size(strs :: [String.t()]) :: integer
   def min_deletion_size(strs) do
-    count = (strs |> Enum.map(&String.length/1) |> Enum.min()) - 1
-
-    is_sorted_list =
-      for i <- 0..count, into: [] do
-        list = strs |> Enum.map(&String.at(&1, i))
-
-        # 問題の制限がゆるいので sorted? みたいなのを自作しなくても大丈夫そう
-        # strs[i] consists of lowercase English letters. なので、何も考えずソートするだけでいいはず
-        list == Enum.sort(list)
+    str_maps =
+      for str <- strs, into: [] do
+        charlist = String.to_charlist(str)
+        for {char, index} <- Enum.with_index(charlist), into: %{}, do: {index, char}
       end
 
-    Enum.count(is_sorted_list, &(&1 == false))
+    count = (Enum.at(strs, 0) |> String.length()) - 1
+
+    is_sorted =
+      for i <- 0..count, into: [] do
+        chars = Enum.map(str_maps, &Map.fetch!(&1, i))
+        chars == Enum.sort(chars)
+      end
+
+    Enum.count(is_sorted, &(&1 == false))
   end
 end
 
@@ -31,6 +34,12 @@ defmodule Test do
     Solution.min_deletion_size(strs) |> IO.inspect()
     strs = ["zyx", "wvu", "tsr"]
     Solution.min_deletion_size(strs) |> IO.inspect()
+  end
+
+  def clock do
+    str = List.duplicate("a", 10000) |> Enum.join()
+    strs = [str]
+    :timer.tc(Solution, :min_deletion_size, [strs])
   end
 end
 
