@@ -60,22 +60,35 @@ defmodule Solution do
   * テスト
   * clock
   * メモ化してみる
+
+  メモ化無しでclockが121297
+  :timer.tc(Solution, :combination_sum, [[2,3,4,6,7], 30])
   """
   @spec combination_sum(candidates :: [integer], target :: integer) :: [[integer]]
   def combination_sum(candidates, target) do
     # candidates をソートする(多分不要だけどいちゃもんつけられたくないので...)
     candidates = Enum.sort(candidates)
-
+    find(candidates, target)
   end
 
-  def find(_candidates, 0), do: MapSet.new([])
+  def find(_candidates, 0), do: MapSet.new([%{}])
   def find([minimum | _], target) when target < minimum, do: :unreachable
 
   def find(candidates, target) do
-    # TODO: 明日はここから
-    # candidates それぞれにたいして find(c, t-c) する
-    # :unreachable をリジェクトする
-    # 結果をunion_allする
+    results = Enum.map(candidates, &incr_candidate(find(candidates, target - &1), &1))
+    # IO.inspect(target)
+    # IO.inspect(results)
+    results = Enum.filter(results, & &1 != :unreachable)
+    Enum.reduce(results, & MapSet.union(&1, &2))
+  end
+
+  # 経路一覧に、自分を一個追加する
+  # S(2+2, 4), 2 -> S(2+2+2, 2+4)
+  def incr_candidate(:unreachable, _candidate), do: :unreachable
+
+  def incr_candidate(mapset, candidate) do
+    # to_list 挟むの結構重そう...
+    mapset |> MapSet.to_list() |> Enum.map(& incr_map(&1, candidate)) |> MapSet.new()
   end
 
   # multiset わざわざやんないでもこんなんでよさそう
@@ -85,6 +98,16 @@ defmodule Solution do
     else
       Map.put(map, key, 1)
     end
+  end
+end
+
+defmodule Test do
+  def test do
+    Solution.combination_sum([2,3,4], 8)
+  end
+
+  def clock do
+    :timer.tc(Solution, :combination_sum, [[2,3,4,6,7], 30])
   end
 end
 # @lc code=end
