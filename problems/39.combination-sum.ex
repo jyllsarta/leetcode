@@ -52,6 +52,7 @@ defmodule Solution do
   (この重複排除は、2+2+2+2を 2*4 の multiset として扱えば良いはず)
 
   素朴！そしてメモに書き込む瞬間の時点でセットの最小化をできるので、メモを参照したのに重いってことにはならなさそう
+  この筆算どおりに組めば良さそう
 
   * add_memberができるmultiset を作ってテスト
   * multiset にメンバー足しながらルート集合を構築する1サイクルのスニペット
@@ -63,23 +64,44 @@ defmodule Solution do
 
   メモ化無しでclockが121297
   :timer.tc(Solution, :combination_sum, [[2,3,4,6,7], 30])
+
+  メモ化オンでclockが1626 劇的すぎる
+  :timer.tc(Solution, :combination_sum, [[2,3,4,6,7], 30])
+
+  メモ化オンなら明らかな最悪計算量パターンでも90616 ちょっと微妙かもだけど耐えてそう
+  :timer.tc(Solution, :combination_sum, [2..30, 40])
   """
   @spec combination_sum(candidates :: [integer], target :: integer) :: [[integer]]
   def combination_sum(candidates, target) do
+    {:ok, memo} = Memo.start_link()
+
     # candidates をソートする(多分不要だけどいちゃもんつけられたくないので...)
     candidates = Enum.sort(candidates)
-    find(candidates, target)
+    results = find(candidates, target, memo)
+    if results == :unreachable  do
+      []
+    else
+      results |> MapSet.to_list() |> Enum.map(&to_items/1)
+    end
   end
 
-  def find(_candidates, 0), do: MapSet.new([%{}])
-  def find([minimum | _], target) when target < minimum, do: :unreachable
+  def find(_candidates, 0, _memo), do: MapSet.new([%{}])
+  def find([minimum | _], target, _memo) when target < minimum, do: :unreachable
 
-  def find(candidates, target) do
-    results = Enum.map(candidates, &incr_candidate(find(candidates, target - &1), &1))
-    # IO.inspect(target)
-    # IO.inspect(results)
-    results = Enum.filter(results, & &1 != :unreachable)
-    Enum.reduce(results, & MapSet.union(&1, &2))
+  def find(candidates, target, memo) do
+    if Memo.get(memo, target) do
+      Memo.get(memo, target)
+    else
+      results = Enum.map(candidates, &incr_candidate(find(candidates, target - &1, memo), &1))
+      results = Enum.filter(results, &(&1 != :unreachable))
+      answer = if results == [] do
+        :unreachable
+      else
+        Enum.reduce(results, &MapSet.union(&1, &2))
+      end
+      Memo.put(memo, target, answer)
+      answer
+    end
   end
 
   # 経路一覧に、自分を一個追加する
@@ -88,7 +110,7 @@ defmodule Solution do
 
   def incr_candidate(mapset, candidate) do
     # to_list 挟むの結構重そう...
-    mapset |> MapSet.to_list() |> Enum.map(& incr_map(&1, candidate)) |> MapSet.new()
+    mapset |> MapSet.to_list() |> Enum.map(&incr_map(&1, candidate)) |> MapSet.new()
   end
 
   # multiset わざわざやんないでもこんなんでよさそう
@@ -99,15 +121,40 @@ defmodule Solution do
       Map.put(map, key, 1)
     end
   end
+
+  # %{2 => 3, 3 => 5} -> [2,2,2,3,3,3,3,3]
+  def to_items(multiset) do
+    items = for {k, v} <- multiset, into: [], do: List.duplicate(k, v)
+    List.flatten(items)
+  end
+end
+
+defmodule Memo do
+  use Agent
+
+  def start_link do
+    Agent.start_link(fn -> %{} end)
+  end
+
+  def get(memo, key) do
+    Agent.get(memo, &Map.get(&1, key))
+  end
+
+  def put(memo, key, value) do
+    Agent.update(memo, &Map.put(&1, key, value))
+  end
 end
 
 defmodule Test do
   def test do
-    Solution.combination_sum([2,3,4], 8)
+    Solution.combination_sum([2, 3, 4], 8) |> IO.inspect()
+    Solution.combination_sum([2], 1) |> IO.inspect()
+    Solution.combination_sum([3, 5, 7], 9) |> IO.inspect()
   end
 
   def clock do
-    :timer.tc(Solution, :combination_sum, [[2,3,4,6,7], 30])
+    :timer.tc(Solution, :combination_sum, [2..30, 40])
   end
 end
+
 # @lc code=end
